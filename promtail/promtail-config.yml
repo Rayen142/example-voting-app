@@ -1,0 +1,32 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+# --- INI ADALAH BAGIAN YANG DIPERBAIKI ---
+scrape_configs:
+  - job_name: system
+    # Menggunakan Docker Service Discovery untuk menemukan container
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # Filter untuk hanya mengambil container dari jaringan 'vote-net' kita
+        filters:
+          - name: network
+            values: [example-voting-app_vote-net]
+    
+    # Menambahkan label ke log yang ditemukan
+    relabel_configs:
+      # Menggunakan nama container sebagai label 'app'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'app'
+      # Menggunakan nama container sebagai label 'container'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
