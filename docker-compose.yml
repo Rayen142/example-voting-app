@@ -1,97 +1,118 @@
-# version is now using "compose spec"
-# v2 and v3 are now combined!
-# docker-compose v1.27+ required
+version: '3.8'
 
-# Mendefinisikan semua layanan (container) yang akan dijalankan
 services:
+  # --- 5 LAYANAN APLIKASI ASLI ---
+
   vote:
-    build: 
-      context: ./vote
-      target: dev
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    volumes:
-     - ./vote:/usr/local/app
+    build: ./vote
+    # PERBAIKAN: Kita menghapus 'target: dev'
+    expose:
+      - "8000"
     ports:
-      - "8080:80"
+      - "5000:80"
     networks:
-      - front-tier
-      - back-tier
-
-  result:
-    build: ./result
-    # use nodemon rather than node for local dev
-    entrypoint: nodemon --inspect=0.0.0.0 server.js
-    depends_on:
-      db:
-        condition: service_healthy 
-    volumes:
-      - ./result:/usr/local/app
-    ports:
-      - "8081:80"
-      - "127.0.0.1:9229:9229"
-    networks:
-      - front-tier
-      - back-tier
-
-  worker:
-    build:
-      context: ./worker
-    depends_on:
-      redis:
-        condition: service_healthy 
-      db:
-        condition: service_healthy 
-    networks:
-      - back-tier
+      - vote-net
+    labels:
+      - "app=vote"
 
   redis:
     image: redis:alpine
-    volumes:
-      - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/redis.sh
-      interval: "5s"
     networks:
-      - back-tier
+      - vote-net
+
+  worker:
+    build: ./worker
+    depends_on:
+      - db
+      - redis
+    networks:
+      - vote-net
+    labels:
+      - "app=worker"
 
   db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
+    image: postgres:9.4
     volumes:
       - "db-data:/var/lib/postgresql/data"
-      - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /healthchecks/postgres.sh
-      interval: "5s"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
     networks:
-      - back-tier
+      - vote-net
+    labels:
+      - "app=db"
 
-  # this service runs once to seed the database with votes
-  # it won't run unless you specify the "seed" profile
-  # docker compose --profile seed up -d
-  seed:
-    build: ./seed-data
-    profiles: ["seed"]
+  result:
+    build: ./result
+    ports:
+      - "5001:80"
     depends_on:
-      vote:
-        condition: service_healthy 
+      - db
     networks:
-      - front-tier
-    restart: "no"
+      - vote-net
+    labels:
+      - "app=result"
+
+  # --- 4 LAYANAN MONITORING BARU ---
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - vote-net
+    labels:
+      - "app=prometheus"
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - vote-net
+    labels:
+      - "app=grafana"
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - vote-net
+    labels:
+      - "app=loki"
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    networks:
+      - vote-net
+    labels:
+      - "app=promtail"
+
+# --- DEFINISI NETWORKS & VOLUMES ---
+
+networks:
+  vote-net:
 
 volumes:
   db-data:
-
-networks:
-  front-tier:
-  back-tier:
+  grafana-data:
