@@ -90,6 +90,7 @@ Untuk menjalankan aplikasi lengkap dengan tumpukan monitoring (Prometheus, Grafa
     * **Hasil Voting**: `http://localhost:5001`
     * **Grafana**: `http://localhost:3000` (Login: `admin` / `admin`)
     * **Prometheus**: `http://localhost:9090`
+Dashboard Grafana yang sudah dikonfigurasi (`grafana-dashboard.json`) juga disertakan dalam repositori ini dan bisa mengimpornya ke Grafana pribadi.
 =======
 **[Tonton Video Penjelasan di Google Drive](https://drive.google.com/file/d/1x33fz4TJ9i-fSgA2QyV70XDVj9yshVQU/view?usp=drivesdk)**
 >>>>>>> feature/99-devops-setup
