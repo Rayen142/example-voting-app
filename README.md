@@ -63,3 +63,17 @@ The voting application only accepts one vote per client browser. It does not reg
 This isn't an example of a properly architected perfectly designed distributed app... it's just a simple
 example of the various types of pieces and languages you might see (queues, persistent data, etc), and how to
 deal with them in Docker at a basic level.
+
+---
+
+## 3. Menjalankan dengan Monitoring Stack (Tantangan Kedua)
+
+Untuk menjalankan aplikasi lengkap dengan tumpukan monitoring (Prometheus, Grafana, Loki):
+
+1. Berada di branch `feature/monitoring-stack`.
+2. Jalankan perintah: `docker-compose up --build`
+3. Akses layanan berikut di browser Anda:
+    * **Aplikasi Voting**: `http://localhost:5000`
+    * **Hasil Voting**: `http://localhost:5001`
+    * **Grafana**: `http://localhost:3000` (Login: `admin` / `admin`)
+    * **Prometheus**: `http://localhost:9090`
